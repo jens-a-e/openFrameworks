@@ -1,80 +1,86 @@
-#ifndef _OF_SAMPLE_SOUND
-#define _OF_SAMPLE_SOUND
+#pragma once
 
 #include "ofConstants.h"
+#include "ofTypes.h"
 
-#ifndef TARGET_OF_IPHONE
-extern "C" {
-#include "fmod.h"
-#include "fmod_errors.h"
-}
-#endif
-
-//		TO DO :
-//		---------------------------
-// 		-fft via fmod, as in the last time...
-// 		-close fmod if it's up
-//		-loadSoundForStreaming(char * fileName);
-//		---------------------------
-
-// 		interesting:
-//		http://www.compuphase.com/mp3/mp3loops.htm
-
-
-// ---------------------------------------------------------------------------- SOUND SYSTEM FMOD
 
 // --------------------- global functions:
+
+//TODO: FIX THIS SHIT!!!!!!
+//#warning FIX THIS.
 void ofSoundStopAll();
 void ofSoundSetVolume(float vol);
 void ofSoundUpdate();						// calls FMOD update.
 float * ofSoundGetSpectrum(int nBands);		// max 512...
+void ofSoundShutdown();
+
+#include "ofBaseTypes.h"
+#include "ofBaseSoundPlayer.h"
 
 
-// --------------------- player functions:
-class ofSoundPlayer {
+#ifdef OF_SOUND_PLAYER_QUICKTIME
+#include "ofQuicktimeSoundPlayer.h"
+#define OF_SOUND_PLAYER_TYPE ofQuicktimeSoundPlayer
+#endif
+
+#ifdef OF_SOUND_PLAYER_FMOD
+#include "ofFmodSoundPlayer.h"
+#define OF_SOUND_PLAYER_TYPE ofFmodSoundPlayer
+#endif
+
+#ifdef OF_SOUND_PLAYER_OPENAL
+#include "ofOpenALSoundPlayer.h"
+#define OF_SOUND_PLAYER_TYPE ofOpenALSoundPlayer
+#endif
+
+#ifdef TARGET_OF_IPHONE
+#include "ofxOpenALSoundPlayer.h"
+#define OF_SOUND_PLAYER_TYPE ofxOpenALSoundPlayer
+#endif
+
+#ifdef TARGET_ANDROID
+#include "ofxAndroidSoundPlayer.h"
+#define OF_SOUND_PLAYER_TYPE ofxAndroidSoundPlayer
+inline void ofSoundShutdown(){}
+#endif
+
+//---------------------------------------------
+class ofSoundPlayer : public ofBaseSoundPlayer {
 
 	public:
 
 		ofSoundPlayer();
-		virtual ~ofSoundPlayer();
 
-		void loadSound(string fileName, bool stream = false);
+		void setPlayer(ofPtr<ofBaseSoundPlayer> newPlayer);
+		ofPtr<ofBaseSoundPlayer> getPlayer();
+
+		bool loadSound(string fileName, bool stream = false);
 		void unloadSound();
 		void play();
 		void stop();
 
 		void setVolume(float vol);
-		void setPan(float vol);
+		void setPan(float vol); // -1 to 1 
 		void setSpeed(float spd);
 		void setPaused(bool bP);
 		void setLoop(bool bLp);
 		void setMultiPlay(bool bMp);
 		void setPosition(float pct); // 0 = start, 1 = end;
+		void setPositionMS(int ms);
+		int getPositionMS();
 
 		float getPosition();
 		bool getIsPlaying();
 		float getSpeed();
 		float getPan();
+		float getVolume();
 
-		static void initializeFmod();
-		static void closeFmod();
+		bool isLoaded(); 		
 
-		bool isStreaming;
-		bool bMultiPlay;
-		bool bLoop;
-		bool bLoadedOk;
-		bool bPaused;
-		float pan; // 0 - 1
-		float volume; // 0 - 1
-		float internalFreq; // 44100 ?
-		float speed; // -n to n, 1 = normal, -1 backwards
-		unsigned int length; // in samples;
+	protected:
 
-		#ifndef TARGET_OF_IPHONE
-			FMOD_RESULT result;
-			FMOD_CHANNEL * channel;
-			FMOD_SOUND * sound;
-		#endif
+		ofPtr<ofBaseSoundPlayer> player;
+
+
 };
 
-#endif // _OF_SAMPLE_SOUND

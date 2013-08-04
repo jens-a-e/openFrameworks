@@ -1,14 +1,45 @@
-#ifndef OF_CONSTANTS
-#define OF_CONSTANTS
+#pragma once
 
 //-------------------------------
-#define OF_VERSION	6
+#define OF_VERSION_MAJOR 0
+#define OF_VERSION_MINOR 7
+#define OF_VERSION_PATCH 4
+
 //-------------------------------
 
+enum ofLoopType{
+	OF_LOOP_NONE=0x01,
+	OF_LOOP_PALINDROME=0x02,
+	OF_LOOP_NORMAL=0x03
+};
 
-#define OF_LOOP_NONE					0x01
-#define OF_LOOP_PALINDROME				0x02
-#define OF_LOOP_NORMAL					0x03
+enum ofTargetPlatform{
+	OF_TARGET_OSX,
+	OF_TARGET_WINGCC,
+	OF_TARGET_WINVS,
+	OF_TARGET_IPHONE,
+	OF_TARGET_ANDROID,
+	OF_TARGET_LINUX,
+	OF_TARGET_LINUX64
+};
+
+// Cross-platform deprecation warning
+#ifdef __GNUC__
+	// clang also has this defined. deprecated(message) is only for gcc>=4.5
+	#if (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 5)
+        #define OF_DEPRECATED_MSG(message, func) func __attribute__ ((deprecated(message)))
+    #else
+        #define OF_DEPRECATED_MSG(message, func) func __attribute__ ((deprecated))
+    #endif
+	#define OF_DEPRECATED(func) func __attribute__ ((deprecated))
+#elif defined(_MSC_VER)
+	#define OF_DEPRECATED_MSG(message, func) __declspec(deprecated(message)) func
+	#define OF_DEPRECATED(func) __declspec(deprecated) func
+#else
+	#pragma message("WARNING: You need to implement DEPRECATED for this compiler")
+	#define OF_DEPRECATED_MSG(message, func) func
+	#define OF_DEPRECATED(func) func
+#endif
 
 //-------------------------------
 //  find the system type --------
@@ -22,12 +53,15 @@
 #elif defined( __APPLE_CC__)
 	#include <TargetConditionals.h>
 
-	#if (TARGET_OF_IPHONE_SIMULATOR) || (TARGET_OS_IPHONE) || (TARGET_IPHONE)
+	#if (TARGET_OS_IPHONE_SIMULATOR) || (TARGET_OS_IPHONE) || (TARGET_IPHONE)
 		#define TARGET_OF_IPHONE
 		#define TARGET_OPENGLES
 	#else
 		#define TARGET_OSX
 	#endif
+#elif defined (ANDROID)
+	#define TARGET_ANDROID
+	#define TARGET_OPENGLES
 #else
 	#define TARGET_LINUX
 #endif
@@ -42,13 +76,21 @@
 		#   define _WIN32_WINNT 0x400
 	#endif
 	#define WIN32_LEAN_AND_MEAN
+
+	#if (_MSC_VER)
+		#define NOMINMAX		
+		//http://stackoverflow.com/questions/1904635/warning-c4003-and-errors-c2589-and-c2059-on-x-stdnumeric-limitsintmax
+	#endif
+
 	#include <windows.h>
-	#include "GLee.h"
+	#define GLEW_STATIC
+	#include "GL\glew.h"
+	#include "GL\wglew.h"
    	#include "glu.h"
 	#define __WINDOWS_DS__
 	#define __WINDOWS_MM__
 	#if (_MSC_VER)       // microsoft visual studio
-		#pragma warning(disable : 4996)     // disable all deprecation warnings
+		#include <stdint.h>
 		#pragma warning(disable : 4068)     // unknown pragmas
 		#pragma warning(disable : 4101)     // unreferenced local variable
 		#pragma	warning(disable : 4312)		// type cast conversion (in qt vp)
@@ -86,8 +128,8 @@
 		#define __MACOSX_CORE__
 	#endif
 	#include <unistd.h>
-	#include "GLee.h"
-	#include <OpenGL/glu.h>
+	#include "GL/glew.h"
+	#include <OpenGL/gl.h>
 	#include <ApplicationServices/ApplicationServices.h>
 
 	#if defined(__LITTLE_ENDIAN__)
@@ -96,9 +138,11 @@
 #endif
 
 #ifdef TARGET_LINUX
+		#define GL_GLEXT_PROTOTYPES
         #include <unistd.h>
-        #include "GLee.h"
-        #include <GL/glu.h>
+		#include <GL/glew.h>
+		#include <GL/gl.h>
+		#include <GL/glx.h>
 
     // for some reason, this isn't defined at compile time,
     // so this hack let's us work
@@ -119,7 +163,29 @@
 #ifdef TARGET_OF_IPHONE
 	#import <OpenGLES/ES1/gl.h>
 	#import <OpenGLES/ES1/glext.h>
+	
+	#define TARGET_LITTLE_ENDIAN		// arm cpu	
 #endif
+
+#ifdef TARGET_ANDROID
+	#include <typeinfo>
+	#include <unistd.h>
+	#include <GLES/gl.h>
+	#define GL_GLEXT_PROTOTYPES
+	#include <GLES/glext.h>
+
+	#define TARGET_LITTLE_ENDIAN
+#endif
+
+#ifdef TARGET_OPENGLES
+	#include "glu.h"
+	//typedef GLushort ofIndexType ;
+#else
+	//typedef GLuint ofIndexType;
+#endif
+
+#include "tesselator.h"
+typedef TESSindex ofIndexType;
 
 
 #ifndef __MWERKS__
@@ -133,91 +199,121 @@
 
 
 //------------------------------------------------ capture
-// if are linux
+// check if any video capture system is already defined from the compiler
+#if !defined(OF_VIDEO_CAPTURE_GSTREAMER) && !defined(OF_VIDEO_CAPTURE_QUICKTIME) && !defined(OF_VIDEO_CAPTURE_DIRECTSHOW) && !defined(OF_VIDEO_CAPTURE_ANDROID) && !defined(OF_VIDEO_CAPTURE_IPHONE)
+	#ifdef TARGET_LINUX
 
-#ifdef TARGET_LINUX
-
-
-	// firewire cameras doesn't work yet with gstreamer you can change
-	// to unicap by uncommenting the following define. note that this can make
-	// your app GPL
-
-	// (if you change this, you might need to clean and rebuild, in CB build->rebuild)
-
-	//#define OF_SWITCH_TO_UNICAP_FOR_LINUX_VIDCAP
-
-	#ifdef OF_SWITCH_TO_UNICAP_FOR_LINUX_VIDCAP
-		#define OF_VIDEO_CAPTURE_UNICAP
-    #else
 		#define OF_VIDEO_CAPTURE_GSTREAMER
-	#endif
 
-
-#else
-
-    // non - linux, pc or osx
-
-    // comment out this following line, if you'd like to use the
-    // quicktime capture interface on windows
-    // if not, we default to videoInput library for
-    // direct show capture...
-
-    #define OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
-
-    #ifdef OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
-        #ifdef TARGET_OSX
-            #define OF_VIDEO_CAPTURE_QUICKTIME
-        #else
-            #define OF_VIDEO_CAPTURE_DIRECTSHOW
+	#elif defined(TARGET_OSX)
+		//on 10.6 and below we can use the old grabber
+		#ifndef MAC_OS_X_VERSION_10_7
+			#define OF_VIDEO_CAPTURE_QUICKTIME
+		#else
+			#define OF_VIDEO_CAPTURE_QTKIT
         #endif
-    #else
-        // all quicktime, all the time
-        #define OF_VIDEO_CAPTURE_QUICKTIME
-    #endif
+
+	#elif defined (TARGET_WIN32)
+
+		// comment out this following line, if you'd like to use the
+		// quicktime capture interface on windows
+		// if not, we default to videoInput library for
+		// direct show capture...
+
+		#define OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
+
+		#ifdef OF_SWITCH_TO_DSHOW_FOR_WIN_VIDCAP
+			#define OF_VIDEO_CAPTURE_DIRECTSHOW
+		#else
+			#define OF_VIDEO_CAPTURE_QUICKTIME
+		#endif
+
+	#elif defined(TARGET_ANDROID)
+
+		#define OF_VIDEO_CAPTURE_ANDROID
+
+	#elif defined(TARGET_OF_IPHONE)
+
+		#define OF_VIDEO_CAPTURE_IPHONE
+
+	#endif
 #endif
 
+//------------------------------------------------  video player
+// check if any video player system is already defined from the compiler
+#if !defined(OF_VIDEO_PLAYER_GSTREAMER) && !defined(OF_VIDEO_PLAYER_IPHONE) && !defined(OF_VIDEO_PLAYER_QUICKTIME)
+	#ifdef TARGET_LINUX
+		#define OF_VIDEO_PLAYER_GSTREAMER
+	#else
+		#ifdef TARGET_OF_IPHONE
+			#define OF_VIDEO_PLAYER_IPHONE
+        #elif defined(TARGET_OSX)
+			//for 10.7 and 10.8 users we use QTKit for 10.6 users we use QuickTime
+			#ifndef MAC_OS_X_VERSION_10_7
+				#define OF_VIDEO_PLAYER_QUICKTIME
+			#else
+				#define OF_VIDEO_PLAYER_QTKIT
+			#endif
+		#elif !defined(TARGET_ANDROID)
+			#define OF_VIDEO_PLAYER_QUICKTIME
+		#endif
+	#endif
+#endif
 
-#ifdef TARGET_LINUX
-	#define OF_VIDEO_PLAYER_GSTREAMER
-#else
-	#define OF_VIDEO_PLAYER_QUICKTIME
+//------------------------------------------------ soundstream
+// check if any soundstream api is defined from the compiler
+#if !defined(OF_SOUNDSTREAM_PORTAUDIO) && !defined(OF_SOUNDSTREAM_RTAUDIO) && !defined(OF_SOUNDSTREAM_ANDROID)
+	#ifdef TARGET_LINUX
+		#define OF_SOUNDSTREAM_PORTAUDIO
+	#elif defined(TARGET_WIN32) || defined(TARGET_OSX)
+		#define OF_SOUNDSTREAM_RTAUDIO
+	#elif defined(TARGET_ANDROID)
+		#define OF_SOUNDSTREAM_ANDROID
+	#else
+		#define OF_SOUNDSTREAM_IPHONE
+	#endif
+#endif
+
+//------------------------------------------------ soundplayer
+// check if any soundplayer api is defined from the compiler
+#if !defined(OF_SOUND_PLAYER_QUICKTIME) && !defined(OF_SOUND_PLAYER_FMOD) && !defined(OF_SOUND_PLAYER_OPENAL)
+  #ifdef TARGET_OF_IPHONE
+  	#define OF_SOUND_PLAYER_IPHONE
+  #elif defined TARGET_LINUX
+  	#define OF_SOUND_PLAYER_OPENAL
+  #elif !defined(TARGET_ANDROID)
+  	#define OF_SOUND_PLAYER_FMOD
+  #endif
 #endif
 
 // comment out this line to disable all poco related code
 #define OF_USING_POCO
+
 
 //we don't want to break old code that uses ofSimpleApp
 //so we forward declare ofBaseApp and make ofSimpleApp mean the same thing
 class ofBaseApp;
 typedef ofBaseApp ofSimpleApp;
 
-enum ofLogLevel{
-	OF_LOG_VERBOSE,
-	OF_LOG_NOTICE,
-	OF_LOG_WARNING,
-	OF_LOG_ERROR,
-	OF_LOG_FATAL_ERROR,
-	OF_LOG_SILENT	//this one is special and should always be last - set ofSetLogLevel to OF_SILENT to not recieve any messages
-};
-
-#define OF_DEFAULT_LOG_LEVEL  OF_LOG_WARNING;
-
 // serial error codes
 #define OF_SERIAL_NO_DATA 	-2
 #define OF_SERIAL_ERROR		-1
 
 // core: ---------------------------
-#include <stdio.h>
-#include <stdarg.h>
-#include <math.h>
-#include <time.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdarg>
+#include <cmath>
+#include <ctime>
+#include <cstdlib>
+#include <string>
 #include <iostream>
 #include <vector>
-#include <string>
+#include <cstring>
 #include <sstream>  //for ostringsream
 #include <iomanip>  //for setprecision
+#include <fstream>
+#include <algorithm>
+#include <cfloat>
 using namespace std;
 
 #ifndef PI
@@ -264,22 +360,111 @@ using namespace std;
 	#define ABS(x) (((x) < 0) ? -(x) : (x))
 #endif
 
-#define 	OF_FILLED				0x01
-#define 	OF_OUTLINE				0x02
-#define 	OF_WINDOW 				0
-#define 	OF_FULLSCREEN 			1
-#define 	OF_GAME_MODE			2
+enum ofFillFlag{
+	OF_OUTLINE=	0,
+	OF_FILLED = 1,
+};
 
-#define 	OF_RECTMODE_CORNER				0
-#define 	OF_RECTMODE_CENTER				1
+enum ofWindowMode{
+	OF_WINDOW 		= 0,
+	OF_FULLSCREEN 	= 1,
+ 	OF_GAME_MODE	= 2
+};
 
-#define 	OF_IMAGE_GRAYSCALE		0x00
-#define 	OF_IMAGE_COLOR			0x01
-#define 	OF_IMAGE_COLOR_ALPHA	0x02
-#define 	OF_IMAGE_UNDEFINED		0x03
+enum ofAspectRatioMode {
+    OF_ASPECT_RATIO_IGNORE            = 0,
+    OF_ASPECT_RATIO_KEEP              = 1,
+    OF_ASPECT_RATIO_KEEP_BY_EXPANDING = 2,
+};
+
+enum ofAlignVert {
+    OF_ALIGN_VERT_IGNORE   = 0x0000,
+    OF_ALIGN_VERT_TOP      = 0x0010,
+    OF_ALIGN_VERT_BOTTOM   = 0x0020,
+    OF_ALIGN_VERT_CENTER   = 0x0040,
+};
+
+enum ofAlignHorz {
+    OF_ALIGN_HORZ_IGNORE   = 0x0000,
+    OF_ALIGN_HORZ_LEFT     = 0x0001,
+    OF_ALIGN_HORZ_RIGHT    = 0x0002,
+    OF_ALIGN_HORZ_CENTER   = 0x0004,
+};
+
+enum ofRectMode{
+	OF_RECTMODE_CORNER=0,
+ 	OF_RECTMODE_CENTER=1
+};
+
+enum ofScaleMode{
+    // ofScaleMode can usually be interpreted as a concise combination of
+    // an ofAspectRatioMode, an ofAlignVert and an ofAlignHorz.
+    
+    // fits the SUBJECT rect INSIDE the TARGET rect.
+    // Preserves SUBJECTS's aspect ratio.
+    // Final Subject's Area <= Target's Area.
+    // Subject's Center == Target's Center
+    OF_SCALEMODE_FIT     = 0,
+    // FILLS the TARGET rect with the SUBJECT rect.
+    // Preserves the SUBJECT's aspect ratio.
+    // Subject's Area >= Target's Area.
+    // Subject's Center == Target's Center
+    OF_SCALEMODE_FILL    = 1,
+    // Preserves the SUBJECT's aspect ratio.
+    // Subject's Area is Unchanged
+    // Subject's Center == Target's Center
+    OF_SCALEMODE_CENTER  = 2, // centers the subject
+    // Can CHANGE the SUBJECT's aspect ratio.
+    // Subject's Area == Target's Area
+    // Subject's Center == Target's Center
+ 	OF_SCALEMODE_STRETCH_TO_FILL = 3, // simply matches the target dims
+};
+
+enum ofImageType{
+	OF_IMAGE_GRAYSCALE		= 0x00,
+ 	OF_IMAGE_COLOR			= 0x01,
+ 	OF_IMAGE_COLOR_ALPHA	= 0x02,
+ 	OF_IMAGE_UNDEFINED		= 0x03
+};
+
+enum ofPixelFormat{
+	OF_PIXELS_MONO = 0, 
+	OF_PIXELS_RGB,
+	OF_PIXELS_RGBA,
+	OF_PIXELS_BGRA,
+	OF_PIXELS_RGB565
+};
 
 #define		OF_MAX_STYLE_HISTORY	32
+#define		OF_MAX_VIEWPORT_HISTORY	32
 #define		OF_MAX_CIRCLE_PTS 1024
+
+// Blend Modes
+enum ofBlendMode{
+	OF_BLENDMODE_DISABLED = 0,
+	OF_BLENDMODE_ALPHA 	  = 1,
+	OF_BLENDMODE_ADD 	  = 2,
+	OF_BLENDMODE_SUBTRACT = 3,
+	OF_BLENDMODE_MULTIPLY = 4,
+	OF_BLENDMODE_SCREEN   = 5
+};
+
+//this is done to match the iPhone defaults 
+//we don't say landscape, portrait etc becuase iPhone apps default to portrait while desktop apps are typically landscape
+enum ofOrientation{
+	OF_ORIENTATION_DEFAULT = 1,	
+	OF_ORIENTATION_180 = 2,
+    OF_ORIENTATION_90_LEFT = 3,
+	OF_ORIENTATION_90_RIGHT = 4,
+    OF_ORIENTATION_UNKNOWN = 5
+};
+
+// gradient modes when using ofBackgroundGradient
+enum ofGradientMode {
+	OF_GRADIENT_LINEAR = 0,
+	OF_GRADIENT_CIRCULAR,
+	OF_GRADIENT_BAR
+};
 
 // these are straight out of glu, but renamed and included here
 // for convenience
@@ -293,14 +478,20 @@ using namespace std;
 // also: http://glprogramming.com/red/chapter11.html
 // (CSG ideas)
 
-#define 	OF_POLY_WINDING_ODD 	          100130
-#define 	OF_POLY_WINDING_NONZERO           100131
-#define 	OF_POLY_WINDING_POSITIVE          100132
-#define 	OF_POLY_WINDING_NEGATIVE          100133
-#define		OF_POLY_WINDING_ABS_GEQ_TWO       100134
+enum ofPolyWindingMode{
+	OF_POLY_WINDING_ODD 	        ,
+	OF_POLY_WINDING_NONZERO         ,
+	OF_POLY_WINDING_POSITIVE        ,
+	OF_POLY_WINDING_NEGATIVE        ,
+	OF_POLY_WINDING_ABS_GEQ_TWO
+};
 
 #define 	OF_CLOSE						  (true)
 
+
+enum ofHandednessType {OF_LEFT_HANDED, OF_RIGHT_HANDED};
+
+enum ofMatrixMode {OF_MATRIX_MODELVIEW=0, OF_MATRIX_PROJECTION, OF_MATRIX_TEXTURE};
 
 //--------------------------------------------
 //
@@ -320,6 +511,9 @@ using namespace std;
 	#define OF_KEY_MODIFIER 	0x0100
 	#define OF_KEY_RETURN		13
 	#define OF_KEY_ESC			27
+	#define OF_KEY_CTRL			0x0200
+	#define OF_KEY_ALT			0x0300
+	#define OF_KEY_SHIFT		0x0400
 
 	// http://www.openframeworks.cc/forum/viewtopic.php?t=494
 	// some issues with keys across platforms:
@@ -390,6 +584,13 @@ using namespace std;
 
 #endif
 
-//--------------------------------------------
 
-#endif
+//--------------------------------------------
+//ofBitmap draw mode
+enum ofDrawBitmapMode{
+	OF_BITMAPMODE_SIMPLE = 0,
+	OF_BITMAPMODE_SCREEN,
+	OF_BITMAPMODE_VIEWPORT,
+	OF_BITMAPMODE_MODEL,
+	OF_BITMAPMODE_MODEL_BILLBOARD
+};

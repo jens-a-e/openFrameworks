@@ -2,7 +2,7 @@
 #define _OFX_TCP_SERVER_
 
 #include "ofConstants.h"
-#include "ofxThread.h"
+#include "ofThread.h"
 #include "ofxTCPManager.h"
 #include <map>
 
@@ -11,7 +11,7 @@
 //forward decleration
 class ofxTCPClient;
 
-class ofxTCPServer : public ofxThread{
+class ofxTCPServer : public ofThread{
 
 	public:
 
@@ -19,10 +19,14 @@ class ofxTCPServer : public ofxThread{
 		~ofxTCPServer();
 		void setVerbose(bool _verbose);
 		bool setup(int _port, bool blocking = false);
+		void setMessageDelimiter(string delim);
+	
 		bool close();
 		bool disconnectClient(int clientID);
 
-		int getNumClients();
+		int getNumClients(); //total number of clients - not sutible for iterating through clients with
+		int getLastID(); //this returns the last current id number if you want to loop through with a for loop 
+		
 		int getPort();
 		bool isConnected();
 
@@ -38,6 +42,11 @@ class ofxTCPServer : public ofxThread{
 		//the receiver see: STR_END_MSG (ofTCPClient.h)
 		bool send(int clientID, string message);
 		bool sendToAll(string message);
+
+
+		// same as send for binary data
+		bool sendRawMsg(int clientID, const char * rawMsg, const int numBytes);
+		bool sendRawMsgToAll(const char * rawMsg, const int numBytes);
 
 		//send and receive raw bytes lets you send and receive
 		//byte (char) arrays without modifiying or appending the data.
@@ -60,24 +69,27 @@ class ofxTCPServer : public ofxThread{
 		//sender should send "Hello World[/TCP]"
 		string receive(int clientID);
 
+		// same as receive for binary data
+		int receiveRawMsg(int clientID, char * receiveBytes,  int numBytes);
+
 		//pass in buffer to be filled - make sure the buffer
 		//is at least as big as numBytes
 		int receiveRawBytes(int clientID, char * receiveBytes,  int numBytes);
 
 
-		//don't call this
-		//--------------------------
-		void threadedFunction();
 
+
+	protected:
+		void threadedFunction();
 
 		ofxTCPManager			TCPServer;
 		map<int,ofxTCPClient>	TCPConnections;
 
-	protected:
-		bool			connected, verbose;
+		bool			connected;
 		string			str;
 		int				idCount, port;
 		bool			bClientBlocking;
+		string			messageDelimiter;
 
 };
 

@@ -9,51 +9,88 @@ apps/other
 build/
 obj/
 *.o
+
+
+# OF-specific ignore patterns
+
 openFrameworks.a
 openFrameworksDebug.a
 openFrameworksUniversal.a
-*.app/
 
 #rule to avoid non-official addons going into git
 #see addons/.gitignore
-addons
-
-#codeblocks files
-apps/*/*/*.layout
-apps/*/*/*.depend
-apps/*/*/bin/clickToLaunch*
-apps/*/*/bin/libs
-apps/*/*/obj
+addons/*
 
 #rule to avoid non-official apps going into git
 #see apps/.gitignore
-apps
+apps/*
 
-#codeblocks OF lib files
-libs/openFrameworksCompiled/project/*/*.depend
-libs/openFrameworksCompiled/project/*/*.layout
+#also, see examples/.gitignore
 
-#linux temporary files
-*~
+# Some general ignore patterns
 
-#eclipse build folders
-#Mac OS X
-addons/Debug Mac OS X
-addons/Release Mac OS X
-libs/openFrameworks/Debug Mac OS X
-libs/openFrameworks/Release Mac OS X
-apps/*/*/Debug Mac OS X
-apps/*/*/Release Mac OS X
-.DS_Store
+build/
+obj/
+*.o
+Debug*/
+Release*/
+*.mode*
+*.app/
+*.pyc
+.svn/
+
+# IDE-specific ignore patterns
+
+#XCode
+*.pbxuser
+*.perspective
+*.perspectivev3
+*.mode1v3
+*.mode2v3
+#XCode 4
+xcuserdata
+*.xcworkspace
+
+#Code::Blocks
+*.depend
+*.layout
+
+#Visual Studio
+*.sdf
+*.opensdf
+*.suo
+ipch/
+
+#Eclipse
+.metadata
+local.properties
+.externalToolBuilders
+
+# OS-specific ignore patterns
 
 #Linux
-addons/Debug Linux
-addons/Release Linux
-libs/openFrameworks/Debug Linux
-libs/openFrameworks/Release Linux
-apps/*/*/Debug Linux
-apps/*/*/Release Linux
-apps/*/*/Debug Linux64
-apps/*/*/Release Linux64
+*~
+# KDE
+.directory
+.AppleDouble
 
+#OSX
+.DS_Store
+*.swp
+*~.nib
+# Thumbnails
+._*
+
+#Windows
+# Windows image file caches
+Thumbs.db
+# Folder config file
+Desktop.ini
+
+#Android
+.csettings
+/libs/openFrameworksCompiled/project/android/paths.make
+
+# Miscellaneous
+.mailmap
 

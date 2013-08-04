@@ -67,7 +67,11 @@ SetTimeoutReceive()
 	#include <sys/time.h>
 	#include <sys/ioctl.h>
 
+#ifndef TARGET_ANDROID
     #include <sys/signal.h>
+#else
+	#include <signal.h>
+#endif
 
 	//other types
 	#define INVALID_SOCKET -1
@@ -215,6 +219,8 @@ protected:
   unsigned long m_dwTimeoutAccept;
   bool nonBlocking;
   static bool m_bWinsockInit;
+  bool m_closing;
+
 };
 
 #endif // ___ofxTCPManager__H__
