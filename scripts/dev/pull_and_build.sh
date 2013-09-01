@@ -1,5 +1,5 @@
 #!/bin/bash
-repo_url='https\:\/\/github\.com\/openframeworks\/openFrameworks\/blob\/develop\/'
+repo_url='https\:\/\/github\.com\/openframeworks\/openFrameworks\/blob\/master\/'
 EMAILMESSAGE="/tmp/emailmessage.txt"
 #EMAIL="of-dev@dev.openframeworks.cc"
 EMAIL="arturo@openframeworks.cc"
@@ -50,11 +50,11 @@ function generateLog {
 
 echo "To: ${EMAIL}" >> $EMAILMESSAGE
 echo "Subject: ${SUBJECT}" >> $EMAILMESSAGE
-echo "The following errors were found while compiling the develop branch of openFrameworks" >> $EMAILMESSAGE
+echo "The following errors were found while compiling the master branch of openFrameworks" >> $EMAILMESSAGE
 echo >> $EMAILMESSAGE
 
 cd $(cat ~/.ofprojectgenerator/config)
-git pull upstreamhttps develop
+git pull upstreamhttps master
 make -C libs/openFrameworksCompiled/project/linux64 clean
 echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'> /var/www/ofbuild.html
@@ -77,6 +77,12 @@ make -C libs/openFrameworksCompiled/project/linux64 2> ofbuild.log
 echo '<br/><h2>OF core</h2>' >> /var/www/ofbuild.html
 generateLog OF '\.\.\/\.\.\/\.\.\/' 'libs\/' 'src' 'src' 'OF core'
 
+for category in $(ls * -d | grep -v ios | grep -v android); do
+    for example in *; do
+        rm ${category}/${example}/Makefile
+        rm ${category}/${example}/config.make
+    done
+done
 projectGenerator --allexamples
 cd $(cat ~/.ofprojectgenerator/config)
 cd examples

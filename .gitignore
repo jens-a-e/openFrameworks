@@ -29,15 +29,16 @@ apps/*
 
 # Some general ignore patterns
 
-build/
-obj/
+[Bb]uild/
+[Oo]bj/
 *.o
-Debug*/
-Release*/
+[Dd]ebug*/
+[Rr]elease*/
 *.mode*
 *.app/
 *.pyc
 .svn/
+*.log
 
 # IDE-specific ignore patterns
 
@@ -59,6 +60,9 @@ xcuserdata
 *.sdf
 *.opensdf
 *.suo
+*.pdb
+*.ilk
+*.aps
 ipch/
 
 #Eclipse
